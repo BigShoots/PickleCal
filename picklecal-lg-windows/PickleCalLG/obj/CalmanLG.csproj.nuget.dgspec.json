@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/media/jordan/01DC9A93DD8408C0/Users/Jordan/OneDrive/Documents/pgendroid-lg/calman-lg-windows/CalmanLG/CalmanLG.csproj": {}
+    "/media/jordan/01DC9A93DD8408C0/Users/Jordan/OneDrive/Documents/pgendroid-lg/calman-lg-windows/PickleCalLG/PickleCalLG.csproj": {}
   },
   "projects": {
-    "/media/jordan/01DC9A93DD8408C0/Users/Jordan/OneDrive/Documents/pgendroid-lg/calman-lg-windows/CalmanLG/CalmanLG.csproj": {
+    "/media/jordan/01DC9A93DD8408C0/Users/Jordan/OneDrive/Documents/pgendroid-lg/calman-lg-windows/PickleCalLG/PickleCalLG.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/media/jordan/01DC9A93DD8408C0/Users/Jordan/OneDrive/Documents/pgendroid-lg/calman-lg-windows/CalmanLG/CalmanLG.csproj",
-        "projectName": "CalmanLG",
-        "projectPath": "/media/jordan/01DC9A93DD8408C0/Users/Jordan/OneDrive/Documents/pgendroid-lg/calman-lg-windows/CalmanLG/CalmanLG.csproj",
+        "projectUniqueName": "/media/jordan/01DC9A93DD8408C0/Users/Jordan/OneDrive/Documents/pgendroid-lg/calman-lg-windows/PickleCalLG/PickleCalLG.csproj",
+        "projectName": "PickleCalLG",
+        "projectPath": "/media/jordan/01DC9A93DD8408C0/Users/Jordan/OneDrive/Documents/pgendroid-lg/calman-lg-windows/PickleCalLG/PickleCalLG.csproj",
         "packagesPath": "/home/jordan/.nuget/packages/",
-        "outputPath": "/media/jordan/01DC9A93DD8408C0/Users/Jordan/OneDrive/Documents/pgendroid-lg/calman-lg-windows/CalmanLG/obj/",
+        "outputPath": "/media/jordan/01DC9A93DD8408C0/Users/Jordan/OneDrive/Documents/pgendroid-lg/calman-lg-windows/PickleCalLG/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/home/jordan/.nuget/NuGet/NuGet.Config"

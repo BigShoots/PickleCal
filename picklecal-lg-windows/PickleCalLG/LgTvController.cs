@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace CalmanLG
+namespace PickleCalLG
 {
     /// <summary>
     /// LG TV SSAP (Simple Service Access Protocol) WebSocket controller.
@@ -94,8 +94,8 @@ namespace CalmanLG
                     ["created"] = "20240101",
                     ["appId"] = "com.pgendroid.lg",
                     ["vendorId"] = "com.pgendroid",
-                    ["localizedAppNames"] = new JObject { [""] = "Calman LG" },
-                    ["localizedVendorNames"] = new JObject { [""] = "Calman LG" },
+                    ["localizedAppNames"] = new JObject { [""] = "PickleCal LG" },
+                    ["localizedVendorNames"] = new JObject { [""] = "PickleCal LG" },
                     ["permissions"] = new JArray
                     {
                         "CONTROL_AUDIO", "CONTROL_DISPLAY", "CONTROL_INPUT_JOYSTICK",
@@ -106,7 +106,7 @@ namespace CalmanLG
                         "READ_TV_CHANNEL_LIST", "READ_TV_CURRENT_TIME", "WRITE_NOTIFICATION_TOAST",
                         "READ_INSTALLED_APPS", "CONTROL_TV_SCREEN"
                     },
-                    ["serial"] = "calman-lg-001"
+                    ["serial"] = "picklecal-lg-001"
                 },
                 ["permissions"] = new JArray
                 {

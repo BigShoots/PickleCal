@@ -10,12 +10,12 @@
 using System;
 using System.Reflection;
 
-[assembly: System.Reflection.AssemblyCompanyAttribute("CalmanLG")]
+[assembly: System.Reflection.AssemblyCompanyAttribute("PickleCalLG")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
 [assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
-[assembly: System.Reflection.AssemblyProductAttribute("CalmanLG")]
-[assembly: System.Reflection.AssemblyTitleAttribute("CalmanLG")]
+[assembly: System.Reflection.AssemblyProductAttribute("PickleCalLG")]
+[assembly: System.Reflection.AssemblyTitleAttribute("PickleCalLG")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
 [assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
 [assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]

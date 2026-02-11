@@ -2,7 +2,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CalmanLG", "CalmanLG\CalmanLG.csproj", "{8E4F7A9B-2C3D-4E5F-6A7B-8C9D0E1F2A3B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PickleCalLG", "PickleCalLG\PickleCalLG.csproj", "{8E4F7A9B-2C3D-4E5F-6A7B-8C9D0E1F2A3B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

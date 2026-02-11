@@ -6,14 +6,14 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v8.0": {
-      "CalmanLG/1.0.0": {
+      "PickleCalLG/1.0.0": {
         "dependencies": {
           "Newtonsoft.Json": "13.0.3",
           "OpenTK": "4.9.0",
           "WebSocket4Net": "1.0.0-beta.1"
         },
         "runtime": {
-          "CalmanLG.dll": {}
+          "PickleCalLG.dll": {}
         }
       },
       "Microsoft.Extensions.DependencyInjection.Abstractions/6.0.0": {
@@ -270,7 +270,7 @@
     }
   },
   "libraries": {
-    "CalmanLG/1.0.0": {
+    "PickleCalLG/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

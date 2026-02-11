@@ -4,7 +4,7 @@ using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace CalmanLG
+namespace PickleCalLG
 {
     public partial class MainForm : Form
     {

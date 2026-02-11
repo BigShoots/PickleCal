@@ -9,10 +9,10 @@ using System.Net.Sockets;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace CalmanLG
+namespace PickleCalLG
 {
     /// <summary>
-    /// PGenerator protocol server for HCFR/Calman calibration.
+    /// PGenerator protocol server for HCFR/PickleCal calibration.
     /// Acts as a PGenerator for calibration software that doesn't support Resolve protocol.
     /// </summary>
     public class PGenServer : IDisposable
@@ -84,7 +84,7 @@ namespace CalmanLG
 
                     if (message == "Who is a PGenerator")
                     {
-                        string response = "This is calman-lg-pgen :)";
+                        string response = "This is picklecal-lg-pgen :)";
                         _udpClient.Send(Encoding.UTF8.GetBytes(response), response.Length, result.RemoteEndPoint);
                         OnStatusChange?.Invoke($"Sent discovery response to {result.RemoteEndPoint}");
                     }

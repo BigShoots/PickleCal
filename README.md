@@ -15,10 +15,10 @@ PickleGen is a cross-platform calibration tool for LG TVs, featuring:
 - CMS (Color Management System) adjustments
 - Disable video processing for calibration
 
-### Windows App (CalmanLG)
+### Windows App (PickleCal)
 - Connect to LG webOS TVs via WebSocket
 - Full picture settings control
-- HCFR/Calman PGen protocol support for calibration software compatibility
+- HCFR/PickleCal PGen protocol support for calibration software compatibility
 - Windows Forms UI with tabbed interface
 
 ## Requirements

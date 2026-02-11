@@ -4,7 +4,7 @@ using System;
 using System.Threading;
 using System.Windows.Forms;
 
-namespace CalmanLG
+namespace PickleCalLG
 {
     internal static class Program
     {
