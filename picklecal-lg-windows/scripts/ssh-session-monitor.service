@@ -1,0 +1,18 @@
+[Unit]
+Description=SSH Session Monitor for Auto-Resolution
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/home/jordan/picklecal-lg-windows/scripts/ssh-session-monitor.sh
+Restart=on-failure
+RestartSec=5
+
+# Environment
+Environment="DISPLAY=:0"
+Environment="XDG_SESSION_TYPE=wayland"
+Environment="WAYLAND_DISPLAY=wayland-0"
+
+[Install]
+WantedBy=graphical-session.target
