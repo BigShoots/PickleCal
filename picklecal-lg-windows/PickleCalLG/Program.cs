@@ -1,7 +1,4 @@
-using OpenTK.Windowing.Desktop;
-using OpenTK.Graphics.OpenGL;
 using System;
-using System.Threading;
 using System.Windows.Forms;
 
 namespace PickleCalLG
