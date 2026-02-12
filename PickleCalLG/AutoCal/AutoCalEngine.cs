@@ -335,7 +335,7 @@ namespace PickleCalLG.AutoCal
         {
             var results = new List<AutoCalResult>();
 
-            _log("═══ Starting Full Automated Calibration ═══");
+            _log("═══ Starting Full AutoCal ═══");
 
             // Step 1: Reset
             _log("Resetting white balance and CMS...");
@@ -360,8 +360,8 @@ namespace PickleCalLG.AutoCal
 
             results.Add(new AutoCalResult("Verification", finalWbDe, 1, "Final white balance check"));
 
-            _log("═══ Full Automated Calibration Complete ═══");
-            ReportProgress("Done", "Calibration complete", 1, 1);
+            _log("═══ Full AutoCal Complete ═══");
+            ReportProgress("Done", "AutoCal complete", 1, 1);
 
             return results;
         }
@@ -379,7 +379,7 @@ namespace PickleCalLG.AutoCal
             var result = await _meter.MeasureAsync(request, token);
 
             if (result == null || !result.Success || result.Reading == null)
-                throw new InvalidOperationException("Measurement failed during calibration");
+                throw new InvalidOperationException("Measurement failed during AutoCal");
 
             return new CieXyz(result.Reading.X, result.Reading.Y, result.Reading.Z);
         }

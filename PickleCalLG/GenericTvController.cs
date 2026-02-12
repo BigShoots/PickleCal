@@ -6,7 +6,7 @@ namespace PickleCalLG
     /// <summary>
     /// Generic TV controller for non-LG brands.
     /// Provides a placeholder connection (no actual network communication).
-    /// Automated calibration operations are not supported — measurement-only workflow.
+    /// AutoCal operations are not supported — measurement-only workflow.
     /// </summary>
     public sealed class GenericTvController : ITvController
     {
@@ -111,25 +111,25 @@ namespace PickleCalLG
             return Task.CompletedTask;
         }
 
-        // ── White Balance (not supported — throws for automated calibration guard) ──
+        // ── White Balance (not supported — throws for AutoCal guard) ──
 
         public Task SetWhiteBalance2ptAsync(int redGain, int greenGain, int blueGain,
             int redOffset, int greenOffset, int blueOffset)
-            => throw new NotSupportedException($"Automated white balance is not supported for {_brand} TVs");
+            => throw new NotSupportedException($"AutoCal white balance is not supported for {_brand} TVs");
 
         public Task SetWhiteBalance20ptPointAsync(int index, int red, int green, int blue)
-            => throw new NotSupportedException($"Automated 20-point white balance is not supported for {_brand} TVs");
+            => throw new NotSupportedException($"AutoCal 20-point white balance is not supported for {_brand} TVs");
 
         public Task ResetWhiteBalanceAsync()
-            => throw new NotSupportedException($"Automated white balance reset is not supported for {_brand} TVs");
+            => throw new NotSupportedException($"AutoCal white balance reset is not supported for {_brand} TVs");
 
         // ── CMS (not supported) ──
 
         public Task SetCmsColorAsync(string color, int hue, int saturation, int luminance)
-            => throw new NotSupportedException($"Automated CMS is not supported for {_brand} TVs");
+            => throw new NotSupportedException($"AutoCal CMS is not supported for {_brand} TVs");
 
         public Task ResetCmsAsync()
-            => throw new NotSupportedException($"Automated CMS reset is not supported for {_brand} TVs");
+            => throw new NotSupportedException($"AutoCal CMS reset is not supported for {_brand} TVs");
 
         // ── Utility ──
 

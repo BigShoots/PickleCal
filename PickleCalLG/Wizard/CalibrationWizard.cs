@@ -1,6 +1,5 @@
 using System;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -11,11 +10,12 @@ namespace PickleCalLG.Wizard
 {
     /// <summary>
     /// Step-by-step calibration wizard that guides users through the entire
-    /// TV calibration process — from connecting devices to running automated calibration.
-    /// Uses FlowLayoutPanel for proper DPI-aware layout on 4K displays.
+    /// TV calibration process — from connecting devices to running AutoCal.
+    /// Designed for users of all experience levels.
     /// </summary>
     public sealed class CalibrationWizard : Form
     {
+        // Steps
         private enum WizardStep
         {
             Welcome,
@@ -42,7 +42,6 @@ namespace PickleCalLG.Wizard
         private string _pickleGenIp = "";
         private string _tvIp = "";
         private CalibrationProfile _profile = CalibrationProfile.QuickSdr;
-        private float _dpi = 1f;
 
         // ---------- UI Controls ----------
         private Panel panelHeader = null!;
@@ -55,17 +54,12 @@ namespace PickleCalLG.Wizard
         private Button btnCancel = null!;
         private ProgressBar prgWizard = null!;
 
+        // Step-specific controls
         private Panel? _currentStepPanel;
-
-        // Content width for flow panels
-        private int ContentWidth => panelContent.ClientSize.Width - panelContent.Padding.Horizontal - 10;
 
         public CalibrationWizard(MainForm mainForm)
         {
             _mainForm = mainForm;
-            SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
-            AutoScaleDimensions = new SizeF(96F, 96F);
-            AutoScaleMode = AutoScaleMode.Dpi;
             InitializeWizardForm();
             ShowStep(WizardStep.Welcome);
         }
@@ -73,53 +67,76 @@ namespace PickleCalLG.Wizard
         private void InitializeWizardForm()
         {
             Text = "PickleCal — Calibration Wizard";
-
-            // DPI-scaled form size
-            float dpi = DeviceDpi / 96f;
-            if (dpi < 1f) dpi = 1f;
-            _dpi = dpi;
-            Size = new Size((int)(820 * dpi), (int)(660 * dpi));
-            MinimumSize = new Size((int)(750 * dpi), (int)(600 * dpi));
+            Size = new Size(700, 550);
+            MinimumSize = new Size(650, 500);
             StartPosition = FormStartPosition.CenterParent;
-            FormBorderStyle = FormBorderStyle.Sizable;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
-            BackColor = DarkTheme.Background;
-            ForeColor = DarkTheme.TextPrimary;
-            Font = DarkTheme.DefaultFont;
-            DarkTheme.EnableDarkTitleBar(this);
+            BackColor = Color.FromArgb(30, 30, 30);
+            ForeColor = Color.FromArgb(224, 224, 224);
 
-            int headerH = (int)(68 * dpi);
-            int btnH = (int)(36 * dpi);
-            int footerH = btnH + (int)(28 * dpi);  // button + top/bottom padding
+            // Header
+            panelHeader = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 70,
+                BackColor = Color.FromArgb(20, 20, 20),
+                Padding = new Padding(20, 10, 20, 10)
+            };
 
-            // ── Footer (add FIRST so it docks bottom before Fill) ──
+            lblStepNumber = new Label
+            {
+                AutoSize = true,
+                Font = new Font("Segoe UI", 10f, FontStyle.Regular),
+                ForeColor = Color.FromArgb(100, 180, 255),
+                Location = new Point(20, 12)
+            };
+
+            lblStepTitle = new Label
+            {
+                AutoSize = true,
+                Font = new Font("Segoe UI", 16f, FontStyle.Bold),
+                ForeColor = Color.White,
+                Location = new Point(20, 34)
+            };
+
+            panelHeader.Controls.Add(lblStepNumber);
+            panelHeader.Controls.Add(lblStepTitle);
+
+            // Content area
+            panelContent = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(30, 20, 30, 10),
+                AutoScroll = true
+            };
+
+            // Footer
             panelFooter = new Panel
             {
                 Dock = DockStyle.Bottom,
-                Height = footerH,
-                BackColor = DarkTheme.SurfaceDark,
-                Padding = new Padding((int)(20 * dpi), (int)(10 * dpi), (int)(20 * dpi), (int)(10 * dpi))
+                Height = 65,
+                BackColor = Color.FromArgb(25, 25, 25),
+                Padding = new Padding(20, 10, 20, 10)
             };
-            panelFooter.Paint += (_, pe) =>
+
+            prgWizard = new ProgressBar
             {
-                using var pen = new Pen(DarkTheme.Border, 1);
-                pe.Graphics.DrawLine(pen, 0, 0, panelFooter.Width, 0);
+                Location = new Point(20, 5),
+                Size = new Size(640, 8),
+                Style = ProgressBarStyle.Continuous,
+                Maximum = 8
             };
 
             btnCancel = new Button
             {
                 Text = "Cancel",
-                Size = new Size((int)(90 * dpi), btnH),
-                Anchor = AnchorStyles.Bottom | AnchorStyles.Left,
+                Size = new Size(90, 35),
+                Location = new Point(20, 20),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = DarkTheme.SurfaceLight,
-                ForeColor = DarkTheme.TextSecondary,
-                Font = DarkTheme.ButtonFont,
-                Cursor = Cursors.Hand
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.LightGray
             };
-            btnCancel.FlatAppearance.BorderColor = DarkTheme.Border;
-            btnCancel.FlatAppearance.BorderSize = 1;
-            btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(62, 62, 62);
             btnCancel.Click += (_, _) =>
             {
                 if (MessageBox.Show("Cancel the calibration wizard?", "PickleCal",
@@ -131,124 +148,30 @@ namespace PickleCalLG.Wizard
                 }
             };
 
-            btnNext = new Button
-            {
-                Text = "Next →",
-                Size = new Size((int)(130 * dpi), btnH),
-                Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
-                FlatStyle = FlatStyle.Flat,
-                BackColor = DarkTheme.Accent,
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI Semibold", 10f, FontStyle.Bold),
-                Cursor = Cursors.Hand
-            };
-            btnNext.FlatAppearance.BorderSize = 0;
-            btnNext.FlatAppearance.MouseOverBackColor = DarkTheme.AccentLight;
-            btnNext.FlatAppearance.MouseDownBackColor = DarkTheme.AccentDark;
-            btnNext.Click += async (_, _) => await GoNextAsync();
-
             btnBack = new Button
             {
                 Text = "← Back",
-                Size = new Size((int)(100 * dpi), btnH),
-                Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+                Size = new Size(90, 35),
+                Location = new Point(460, 20),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = DarkTheme.SurfaceLight,
-                ForeColor = DarkTheme.TextPrimary,
-                Font = DarkTheme.ButtonFont,
-                Cursor = Cursors.Hand
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.LightGray
             };
-            btnBack.FlatAppearance.BorderColor = DarkTheme.Border;
-            btnBack.FlatAppearance.BorderSize = 1;
-            btnBack.FlatAppearance.MouseOverBackColor = Color.FromArgb(62, 62, 62);
             btnBack.Click += (_, _) => GoBack();
 
-            prgWizard = new ProgressBar
+            btnNext = new Button
             {
-                Dock = DockStyle.Top,
-                Height = 4,
-                Style = ProgressBarStyle.Continuous,
-                Maximum = 8,
-                BackColor = DarkTheme.SurfaceDark
-            };
-
-            // Use a TableLayoutPanel for footer to position buttons properly
-            var footerLayout = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 4,
-                RowCount = 1,
-                BackColor = Color.Transparent,
-                Margin = Padding.Empty
-            };
-            footerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));   // Cancel
-            footerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); // spacer
-            footerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));   // Back
-            footerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));   // Next
-            footerLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-            btnCancel.Anchor = AnchorStyles.Left;
-            btnBack.Anchor = AnchorStyles.Right;
-            btnNext.Anchor = AnchorStyles.Right;
-            btnBack.Margin = new Padding(0, 0, 8, 0);
-
-            footerLayout.Controls.Add(btnCancel, 0, 0);
-            footerLayout.Controls.Add(new Panel { BackColor = Color.Transparent }, 1, 0);
-            footerLayout.Controls.Add(btnBack, 2, 0);
-            footerLayout.Controls.Add(btnNext, 3, 0);
-
-            panelFooter.Controls.Add(footerLayout);
-            panelFooter.Controls.Add(prgWizard);
-
-            // ── Header (add SECOND so it docks top after footer) ──
-            panelHeader = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = headerH,
-                BackColor = DarkTheme.SurfaceDark,
-                Padding = new Padding(24, 10, 24, 10)
-            };
-            panelHeader.Paint += (_, pe) =>
-            {
-                var g = pe.Graphics;
-                g.SmoothingMode = SmoothingMode.AntiAlias;
-                // Gradient accent line at bottom
-                using var brush = new LinearGradientBrush(
-                    new Point(0, panelHeader.Height - 2),
-                    new Point(panelHeader.Width, panelHeader.Height - 2),
-                    DarkTheme.Accent, Color.FromArgb(0, DarkTheme.Accent));
-                g.FillRectangle(brush, 0, panelHeader.Height - 2, panelHeader.Width, 2);
-            };
-
-            lblStepNumber = new Label
-            {
-                AutoSize = true,
-                Font = new Font("Segoe UI", 9f, FontStyle.Regular),
-                ForeColor = DarkTheme.Accent,
-                Location = new Point(24, 8),
-                BackColor = Color.Transparent
-            };
-
-            lblStepTitle = new Label
-            {
-                AutoSize = true,
-                Font = new Font("Segoe UI Semibold", 14f, FontStyle.Bold),
+                Text = "Next →",
+                Size = new Size(120, 35),
+                Location = new Point(560, 20),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(26, 115, 232),
                 ForeColor = Color.White,
-                Location = new Point(24, 30),
-                BackColor = Color.Transparent
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold)
             };
+            btnNext.Click += async (_, _) => await GoNextAsync();
 
-            panelHeader.Controls.Add(lblStepNumber);
-            panelHeader.Controls.Add(lblStepTitle);
-
-            // ── Content (add LAST so it fills remaining space) ──
-            panelContent = new Panel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(28, 16, 28, 8),
-                AutoScroll = true,
-                BackColor = DarkTheme.Background
-            };
+            panelFooter.Controls.AddRange(new Control[] { prgWizard, btnCancel, btnBack, btnNext });
 
             Controls.Add(panelContent);
             Controls.Add(panelHeader);
@@ -261,6 +184,7 @@ namespace PickleCalLG.Wizard
         {
             _currentStep = step;
 
+            // Clear current content
             _currentStepPanel?.Dispose();
             panelContent.Controls.Clear();
 
@@ -289,6 +213,7 @@ namespace PickleCalLG.Wizard
             panel.Dock = DockStyle.Fill;
             panelContent.Controls.Add(panel);
 
+            // Update title
             lblStepTitle.Text = step switch
             {
                 WizardStep.Welcome => "Welcome to PickleCal",
@@ -303,9 +228,10 @@ namespace PickleCalLG.Wizard
                 _ => ""
             };
 
+            // Change button text for last steps
             if (step == WizardStep.Complete)
             {
-                btnNext.Text = "Finish ✓";
+                btnNext.Text = "Finish";
                 btnBack.Enabled = false;
             }
             else if (step == WizardStep.RunCalibration)
@@ -321,11 +247,14 @@ namespace PickleCalLG.Wizard
         private void GoBack()
         {
             if (_currentStep > WizardStep.Welcome)
+            {
                 ShowStep(_currentStep - 1);
+            }
         }
 
         private async Task GoNextAsync()
         {
+            // Validate current step before proceeding
             bool canProceed = await ValidateCurrentStepAsync();
             if (!canProceed) return;
 
@@ -338,13 +267,16 @@ namespace PickleCalLG.Wizard
 
             if (_currentStep == WizardStep.RunCalibration)
             {
+                // Actually run the calibration, then auto-advance
                 await RunCalibrationAsync();
                 ShowStep(WizardStep.VerifyResults);
                 return;
             }
 
             if (_currentStep < WizardStep.Complete)
+            {
                 ShowStep(_currentStep + 1);
+            }
         }
 
         private Task<bool> ValidateCurrentStepAsync()
@@ -363,6 +295,7 @@ namespace PickleCalLG.Wizard
                     return Task.FromResult(true);
 
                 case WizardStep.ConnectTv:
+                    // TV connection is optional but recommended
                     return Task.FromResult(true);
 
                 default:
@@ -370,40 +303,29 @@ namespace PickleCalLG.Wizard
             }
         }
 
-        // ---------- Step Builders (using FlowLayoutPanel) ----------
+        // ---------- Step Builders ----------
 
         private Panel BuildWelcomeStep()
         {
-            var flow = CreateFlowPanel();
+            var panel = CreateStepPanel();
 
-            AddFlowLabel(flow, "This wizard will guide you through calibrating your TV display.",
-                fontSize: 12f);
-            AddSpacer(flow, 12);
-            AddFlowLabel(flow, "You'll need:", fontSize: 11f, bold: true);
-            AddFlowLabel(flow, "  ✓  An Android device running PickleGen (phone, stick, or TV box)");
-            AddFlowLabel(flow, "  ✓  A color meter (i1 Display Pro, ColorChecker, SpyderX, etc.)");
-            AddFlowLabel(flow, "  ✓  Your TV (LG, Samsung, Sony, Panasonic, and TCL support automated calibration)");
-            AddFlowLabel(flow, "  ✓  Both devices on the same Wi-Fi network");
+            AddLabel(panel, "This wizard will guide you through calibrating your TV display.", 0, fontSize: 13f);
+            AddLabel(panel, "You'll need:", 40, fontSize: 12f, bold: true);
+            AddLabel(panel, "  ✓  An Android device running PickleGen (phone, stick, or TV box)", 65);
+            AddLabel(panel, "  ✓  A color meter (i1 Display Pro, ColorChecker, SpyderX, etc.)", 88);
+            AddLabel(panel, "  ✓  Your TV (LG TVs support full AutoCal)", 111);
+            AddLabel(panel, "  ✓  Both devices on the same Wi-Fi network", 134);
 
-            AddSpacer(flow, 16);
-            AddFlowLabel(flow, "Select your TV brand:", fontSize: 11f, bold: true);
+            AddLabel(panel, "Select your TV brand:", 170, fontSize: 12f, bold: true);
 
-            var brandRow = new FlowLayoutPanel
-            {
-                FlowDirection = FlowDirection.LeftToRight,
-                AutoSize = true,
-                WrapContents = false,
-                BackColor = Color.Transparent,
-                Margin = new Padding(0, 4, 0, 4)
-            };
             var cmbBrand = new ComboBox
             {
-                Size = new Size((int)(200 * _dpi), (int)(28 * _dpi)),
+                Location = new Point(10, 195),
+                Size = new Size(200, 24),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                BackColor = DarkTheme.InputBackground,
-                ForeColor = DarkTheme.TextPrimary,
-                FlatStyle = FlatStyle.Flat,
-                Font = DarkTheme.DefaultFont
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.FromArgb(224, 224, 224),
+                FlatStyle = FlatStyle.Flat
             };
             foreach (var brand in TvBrandCapabilities.AllBrands)
             {
@@ -412,14 +334,15 @@ namespace PickleCalLG.Wizard
                 if (brand == _selectedBrand)
                     cmbBrand.SelectedIndex = cmbBrand.Items.Count - 1;
             }
+
             var lblBrandCaps = new Label
             {
+                Location = new Point(220, 195),
                 AutoSize = true,
-                Font = new Font("Segoe UI", 9f),
-                ForeColor = DarkTheme.Accent,
-                Margin = new Padding(8, 6, 0, 0),
-                BackColor = Color.Transparent
+                Font = new Font("Segoe UI", 10f),
+                ForeColor = Color.FromArgb(100, 180, 255)
             };
+
             void UpdateBrandCaps()
             {
                 int idx = cmbBrand.SelectedIndex;
@@ -429,230 +352,222 @@ namespace PickleCalLG.Wizard
                     var caps = TvBrandCapabilities.For(_selectedBrand);
                     lblBrandCaps.Text = caps.Description;
                     lblBrandCaps.ForeColor = caps.SupportsAutoCalWhiteBalance
-                        ? DarkTheme.Success : DarkTheme.TextSecondary;
+                        ? Color.FromArgb(76, 175, 80)
+                        : Color.FromArgb(158, 158, 158);
                 }
             }
             UpdateBrandCaps();
             cmbBrand.SelectedIndexChanged += (_, _) => UpdateBrandCaps();
-            brandRow.Controls.AddRange(new Control[] { cmbBrand, lblBrandCaps });
-            flow.Controls.Add(brandRow);
 
-            AddSpacer(flow, 12);
-            AddFlowLabel(flow, "Choose your calibration profile:", fontSize: 11f, bold: true);
+            panel.Controls.AddRange(new Control[] { cmbBrand, lblBrandCaps });
 
-            AddRadio(flow, "Quick SDR — Grayscale + basic colors (15 min)", true,
-                () => _profile = CalibrationProfile.QuickSdr);
-            AddRadio(flow, "Full SDR — Grayscale + saturation sweeps + verification (30 min)", false,
-                () => _profile = CalibrationProfile.FullSdr);
-            AddRadio(flow, "Quick HDR10 — HDR grayscale + basic colors (20 min)", false,
-                () => { _profile = CalibrationProfile.QuickHdr; _isHdr = true; });
-            AddRadio(flow, "Full HDR10 — Complete HDR calibration with metadata (45 min)", false,
-                () => { _profile = CalibrationProfile.FullHdr; _isHdr = true; });
+            AddLabel(panel, "Choose your calibration profile:", 230, fontSize: 12f, bold: true);
 
-            AddSpacer(flow, 12);
-            AddFlowLabel(flow, "No calibration experience needed — just follow each step!",
-                color: DarkTheme.Success, fontSize: 10f);
+            var rdoQuickSdr = new RadioButton
+            {
+                Text = "Quick SDR — Grayscale + basic colors (15 min)",
+                Location = new Point(10, 255),
+                AutoSize = true,
+                ForeColor = Color.FromArgb(224, 224, 224),
+                Checked = true
+            };
+            rdoQuickSdr.CheckedChanged += (_, _) => { if (rdoQuickSdr.Checked) _profile = CalibrationProfile.QuickSdr; };
 
-            return WrapInScrollPanel(flow);
+            var rdoFullSdr = new RadioButton
+            {
+                Text = "Full SDR — Grayscale + saturation sweeps + verification (30 min)",
+                Location = new Point(10, 280),
+                AutoSize = true,
+                ForeColor = Color.FromArgb(224, 224, 224)
+            };
+            rdoFullSdr.CheckedChanged += (_, _) => { if (rdoFullSdr.Checked) _profile = CalibrationProfile.FullSdr; };
+
+            var rdoQuickHdr = new RadioButton
+            {
+                Text = "Quick HDR10 — HDR grayscale + basic colors (20 min)",
+                Location = new Point(10, 305),
+                AutoSize = true,
+                ForeColor = Color.FromArgb(224, 224, 224)
+            };
+            rdoQuickHdr.CheckedChanged += (_, _) => { if (rdoQuickHdr.Checked) { _profile = CalibrationProfile.QuickHdr; _isHdr = true; } };
+
+            var rdoFullHdr = new RadioButton
+            {
+                Text = "Full HDR10 — Complete HDR calibration with metadata (45 min)",
+                Location = new Point(10, 330),
+                AutoSize = true,
+                ForeColor = Color.FromArgb(224, 224, 224)
+            };
+            rdoFullHdr.CheckedChanged += (_, _) => { if (rdoFullHdr.Checked) { _profile = CalibrationProfile.FullHdr; _isHdr = true; } };
+
+            panel.Controls.AddRange(new Control[] { rdoQuickSdr, rdoFullSdr, rdoQuickHdr, rdoFullHdr });
+
+            AddLabel(panel, "No calibration experience needed — just follow each step!", 370,
+                color: Color.FromArgb(76, 175, 80), fontSize: 11f);
+
+            return panel;
         }
 
         private Panel BuildConnectPickleGenStep()
         {
-            var flow = CreateFlowPanel();
+            var panel = CreateStepPanel();
 
-            AddFlowLabel(flow, "PickleGen generates test patterns on your TV via an Android device.", fontSize: 11f);
-            AddSpacer(flow, 8);
-            AddFlowLabel(flow, "1.  Open the PickleGen app on your Android device");
-            AddFlowLabel(flow, "2.  Select 'Easy Mode'");
-            AddFlowLabel(flow, "3.  Note the IP address shown on screen");
-            AddFlowLabel(flow, "4.  Enter it below and click 'Connect'");
+            AddLabel(panel, "PickleGen generates test patterns on your TV via an Android device.", 0, fontSize: 12f);
+            AddLabel(panel, "1. Open the PickleGen app on your Android device", 30);
+            AddLabel(panel, "2. Select 'Easy Mode'", 53);
+            AddLabel(panel, "3. Note the IP address shown on screen", 76);
+            AddLabel(panel, "4. Enter it below and click 'Connect'", 99);
 
-            AddSpacer(flow, 12);
+            var lblIp = new Label { Text = "PickleGen IP:", AutoSize = true, Location = new Point(10, 140), ForeColor = Color.FromArgb(224, 224, 224) };
+            var txtIp = new TextBox { Location = new Point(110, 137), Size = new Size(150, 23), Text = _pickleGenIp };
 
-            var connectRow = new FlowLayoutPanel
-            {
-                FlowDirection = FlowDirection.LeftToRight,
-                AutoSize = true,
-                WrapContents = false,
-                BackColor = Color.Transparent,
-                Margin = new Padding(0, 4, 0, 4)
-            };
-            var lblIp = new Label
-            {
-                Text = "PickleGen IP:",
-                AutoSize = true,
-                Font = DarkTheme.DefaultFont,
-                ForeColor = DarkTheme.TextPrimary,
-                Margin = new Padding(0, 7, 6, 0),
-                BackColor = Color.Transparent
-            };
-            var txtIp = new TextBox
-            {
-                Size = new Size((int)(160 * _dpi), (int)(28 * _dpi)),
-                Text = _pickleGenIp,
-                BackColor = DarkTheme.InputBackground,
-                ForeColor = DarkTheme.TextPrimary,
-                Font = DarkTheme.DefaultFont,
-                BorderStyle = BorderStyle.FixedSingle,
-                Margin = new Padding(0, 3, 8, 0)
-            };
-            var btnConn = new Button
+            var btnConnect = new Button
             {
                 Text = "Connect",
-                Size = new Size((int)(110 * _dpi), (int)(32 * _dpi)),
-                BackColor = DarkTheme.AccentDark,
+                Location = new Point(270, 135),
+                Size = new Size(100, 28),
+                BackColor = Color.FromArgb(26, 115, 232),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = DarkTheme.ButtonFont,
-                Cursor = Cursors.Hand
+                FlatStyle = FlatStyle.Flat
             };
-            btnConn.FlatAppearance.BorderSize = 0;
-            btnConn.FlatAppearance.MouseOverBackColor = DarkTheme.AccentLight;
-            connectRow.Controls.AddRange(new Control[] { lblIp, txtIp, btnConn });
-            flow.Controls.Add(connectRow);
-
             var lblStatus = new Label
             {
                 Text = _pickleGen?.IsConnected == true ? "✓ Connected" : "Not connected",
-                ForeColor = _pickleGen?.IsConnected == true ? DarkTheme.Success : DarkTheme.TextSecondary,
+                ForeColor = _pickleGen?.IsConnected == true ? Color.FromArgb(76, 175, 80) : Color.FromArgb(158, 158, 158),
                 AutoSize = true,
-                Font = new Font("Segoe UI Semibold", 10f, FontStyle.Bold),
-                Margin = new Padding(0, 4, 0, 4),
-                BackColor = Color.Transparent
+                Location = new Point(10, 180),
+                Font = new Font("Segoe UI", 11f, FontStyle.Bold)
             };
-            flow.Controls.Add(lblStatus);
 
-            btnConn.Click += async (_, _) =>
+            btnConnect.Click += async (_, _) =>
             {
                 string ip = txtIp.Text.Trim();
                 if (string.IsNullOrEmpty(ip))
                 {
-                    MessageBox.Show("Enter the IP address from the PickleGen screen.",
-                        "PickleCal", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("Enter the IP address from the PickleGen screen.", "PickleCal", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
+
                 _pickleGenIp = ip;
-                btnConn.Enabled = false;
+                btnConnect.Enabled = false;
                 lblStatus.Text = "Connecting...";
-                lblStatus.ForeColor = DarkTheme.Warning;
+                lblStatus.ForeColor = Color.FromArgb(255, 171, 0);
+
                 try
                 {
                     if (_pickleGen != null) await _pickleGen.DisposeAsync();
                     _pickleGen = new PickleCalRemoteClient();
                     await _pickleGen.ConnectAsync(ip);
-                    if (_isHdr) await _pickleGen.SetupForHdrCalibrationAsync();
-                    else await _pickleGen.SetupForSdrCalibrationAsync();
+
+                    // Configure for selected mode
+                    if (_isHdr)
+                        await _pickleGen.SetupForHdrCalibrationAsync();
+                    else
+                        await _pickleGen.SetupForSdrCalibrationAsync();
+
                     lblStatus.Text = $"✓ Connected to {_pickleGen.DeviceName}";
-                    lblStatus.ForeColor = DarkTheme.Success;
+                    lblStatus.ForeColor = Color.FromArgb(76, 175, 80);
                 }
                 catch (Exception ex)
                 {
                     lblStatus.Text = $"✗ Failed: {ex.Message}";
-                    lblStatus.ForeColor = DarkTheme.Error;
+                    lblStatus.ForeColor = Color.FromArgb(244, 67, 54);
                 }
-                btnConn.Enabled = true;
+
+                btnConnect.Enabled = true;
             };
 
-            AddSpacer(flow, 8);
-            AddFlowLabel(flow, "Tip: Make sure both devices are on the same Wi-Fi network.",
-                color: DarkTheme.TextMuted, fontSize: 9f);
+            panel.Controls.AddRange(new Control[] { lblIp, txtIp, btnConnect, lblStatus });
 
-            return WrapInScrollPanel(flow);
+            AddLabel(panel, "Tip: Make sure both devices are on the same Wi-Fi network.", 220,
+                color: Color.FromArgb(158, 158, 158), fontSize: 10f);
+
+            return panel;
         }
 
         private Panel BuildConnectMeterStep()
         {
-            var flow = CreateFlowPanel();
+            var panel = CreateStepPanel();
 
-            AddFlowLabel(flow, "Point your color meter at the TV screen, centered on the test pattern area.", fontSize: 11f);
-            AddSpacer(flow, 8);
-            AddFlowLabel(flow, "Supported meters:", bold: true);
-            AddFlowLabel(flow, "  •  X-Rite i1 Display Pro / i1 Display Studio");
-            AddFlowLabel(flow, "  •  Calibrite ColorChecker Display / Display Plus");
-            AddFlowLabel(flow, "  •  Datacolor SpyderX / Spyder5");
-            AddFlowLabel(flow, "  •  Any ArgyllCMS-compatible meter via spotread");
-            AddSpacer(flow, 12);
-            AddFlowLabel(flow, "The meter will be connected via the Meters tab in the main window.", fontSize: 10f);
-            AddFlowLabel(flow, "If you haven't connected it yet, you can do so after this wizard.", fontSize: 10f);
-            AddSpacer(flow, 12);
-            AddFlowLabel(flow, "Make sure your meter is:", bold: true);
-            AddFlowLabel(flow, "  ✓  Plugged into your PC via USB");
-            AddFlowLabel(flow, "  ✓  Pointing at the TV screen center (use a suction cup if available)");
-            AddFlowLabel(flow, "  ✓  The room is as dark as possible for accurate readings");
+            AddLabel(panel, "Point your color meter at the TV screen, centered on the test pattern area.", 0, fontSize: 12f);
+            AddLabel(panel, "Supported meters:", 30, bold: true);
+            AddLabel(panel, "  •  X-Rite i1 Display Pro / i1 Display Studio", 55);
+            AddLabel(panel, "  •  Calibrite ColorChecker Display / Display Plus", 78);
+            AddLabel(panel, "  •  Datacolor SpyderX / Spyder5", 101);
+            AddLabel(panel, "  •  Any ArgyllCMS-compatible meter via spotread", 124);
 
-            return WrapInScrollPanel(flow);
+            AddLabel(panel, "The meter will be connected via the Meters tab in the main window.", 165, fontSize: 11f);
+            AddLabel(panel, "If you haven't connected it yet, you can do so after this wizard.", 188, fontSize: 11f);
+
+            AddLabel(panel, "Make sure your meter is:", 230, bold: true);
+            AddLabel(panel, "  ✓  Plugged into your PC via USB", 255);
+            AddLabel(panel, "  ✓  Pointing at the TV screen center (use a suction cup if available)", 278);
+            AddLabel(panel, "  ✓  The room is as dark as possible for accurate readings", 301);
+
+            return panel;
         }
 
         private Panel BuildConnectTvStep()
         {
-            var flow = CreateFlowPanel();
+            var panel = CreateStepPanel();
             var caps = TvBrandCapabilities.For(_selectedBrand);
 
             if (!caps.SupportsRemoteConnection)
             {
-                AddFlowLabel(flow, $"{caps.DisplayName} TVs do not support remote connection.",
-                    fontSize: 12f, bold: true);
-                AddFlowLabel(flow, "You can still calibrate using measurements only (no automated adjustment).");
-                AddFlowLabel(flow, "Adjust TV picture settings manually using your TV remote.");
-                AddSpacer(flow, 12);
-                AddFlowLabel(flow, "Click Next to continue.", color: DarkTheme.AccentLight);
-                return WrapInScrollPanel(flow);
+                // Brand doesn't support remote connection — skip TV connection
+                AddLabel(panel, $"{caps.DisplayName} TVs do not support remote connection.", 0, fontSize: 13f, bold: true);
+                AddLabel(panel, "You can still calibrate using measurements only (no AutoCal).", 30);
+                AddLabel(panel, "Adjust TV picture settings manually using your TV remote.", 55);
+                AddLabel(panel, "Click Next to continue.", 95,
+                    color: Color.FromArgb(100, 180, 255), fontSize: 12f);
+                return panel;
             }
 
             string brandName = caps.DisplayName;
-            AddFlowLabel(flow, $"Connect to your {brandName} TV for automated picture settings and calibration.", fontSize: 11f);
-            AddFlowLabel(flow, caps.SupportsAutoCalWhiteBalance
-                ? "(Enables automated calibration — white balance & CMS adjusted automatically.)"
-                : "(Enables remote picture settings, but automated calibration is not yet supported.)",
-                color: DarkTheme.TextSecondary, fontSize: 9f);
+            AddLabel(panel, $"Connect to your {brandName} TV for automated picture settings and calibration.", 0, fontSize: 12f);
 
-            AddSpacer(flow, 10);
-            AddFlowLabel(flow, "Find your TV's IP address:", bold: true);
-            AddFlowLabel(flow, "  Settings → Network / About → IP Address");
-            AddFlowLabel(flow, "  (or check your router's device list)");
-            AddSpacer(flow, 10);
+            string autoCalNote = caps.SupportsAutoCalWhiteBalance
+                ? "(Enables AutoCal — automatic white balance & CMS adjustment.)"
+                : "(Enables remote picture settings, but AutoCal is not yet supported.)";
+            AddLabel(panel, autoCalNote, 25,
+                color: Color.FromArgb(158, 158, 158), fontSize: 10f);
 
-            var tvRow = new FlowLayoutPanel
+            AddLabel(panel, "Find your TV's IP address:", 60, bold: true);
+            AddLabel(panel, "  Settings → Network / About → IP Address", 85);
+            AddLabel(panel, "  (or check your router's device list)", 108);
+
+            var lblIp = new Label { Text = "TV IP:", AutoSize = true, Location = new Point(10, 150), ForeColor = Color.FromArgb(224, 224, 224) };
+            var txtIp = new TextBox { Location = new Point(60, 147), Size = new Size(150, 23), Text = _tvIp };
+            var chkSecure = new CheckBox
             {
-                FlowDirection = FlowDirection.LeftToRight,
+                Text = "Secure (webOS 2023+)",
                 AutoSize = true,
-                WrapContents = true,
-                BackColor = Color.Transparent,
-                Margin = new Padding(0, 4, 0, 4)
+                Location = new Point(220, 150),
+                ForeColor = Color.FromArgb(200, 200, 200),
+                Visible = _selectedBrand == TvBrand.LG // Only LG uses secure WebSocket
             };
-            var lblIp = new Label { Text = "TV IP:", AutoSize = true, ForeColor = DarkTheme.TextPrimary, Margin = new Padding(0, 7, 6, 0), BackColor = Color.Transparent };
-            var txtIp = new TextBox { Size = new Size((int)(150 * _dpi), (int)(28 * _dpi)), Text = _tvIp, BackColor = DarkTheme.InputBackground, ForeColor = DarkTheme.TextPrimary, BorderStyle = BorderStyle.FixedSingle, Margin = new Padding(0, 3, 8, 0) };
-            var chkSecure = new CheckBox { Text = "Secure (webOS 2023+)", AutoSize = true, ForeColor = DarkTheme.TextPrimary, Visible = _selectedBrand == TvBrand.LG, Margin = new Padding(8, 6, 0, 0), BackColor = Color.Transparent };
-            tvRow.Controls.AddRange(new Control[] { lblIp, txtIp, chkSecure });
-            flow.Controls.Add(tvRow);
 
-            var btnConn = new Button
+            var btnConnect = new Button
             {
                 Text = $"Connect to {brandName} TV",
-                Size = new Size((int)(240 * _dpi), (int)(34 * _dpi)),
-                BackColor = DarkTheme.AccentDark,
+                Location = new Point(10, 185),
+                Size = new Size(180, 32),
+                BackColor = Color.FromArgb(0, 122, 204),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = DarkTheme.ButtonFont,
-                Cursor = Cursors.Hand,
-                Margin = new Padding(0, 6, 0, 4)
+                FlatStyle = FlatStyle.Flat
             };
-            btnConn.FlatAppearance.BorderSize = 0;
-            btnConn.FlatAppearance.MouseOverBackColor = DarkTheme.AccentLight;
-            flow.Controls.Add(btnConn);
+            btnConnect.FlatAppearance.BorderSize = 0;
 
             var lblStatus = new Label
             {
                 Text = _tvController?.IsConnected == true ? "✓ Connected to TV" : "Not connected (optional)",
-                ForeColor = _tvController?.IsConnected == true ? DarkTheme.Success : DarkTheme.TextSecondary,
+                ForeColor = _tvController?.IsConnected == true ? Color.FromArgb(76, 175, 80) : Color.FromArgb(158, 158, 158),
                 AutoSize = true,
-                Font = new Font("Segoe UI Semibold", 10f, FontStyle.Bold),
-                Margin = new Padding(0, 4, 0, 4),
-                BackColor = Color.Transparent
+                Location = new Point(10, 228),
+                Font = new Font("Segoe UI", 11f, FontStyle.Bold)
             };
-            flow.Controls.Add(lblStatus);
 
-            btnConn.Click += async (_, _) =>
+            btnConnect.Click += async (_, _) =>
             {
                 _tvIp = txtIp.Text.Trim();
                 if (string.IsNullOrEmpty(_tvIp))
@@ -660,121 +575,125 @@ namespace PickleCalLG.Wizard
                     MessageBox.Show("Enter the TV IP address.", "PickleCal", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
-                btnConn.Enabled = false;
+
+                btnConnect.Enabled = false;
                 lblStatus.Text = "Connecting...";
-                lblStatus.ForeColor = DarkTheme.Warning;
+                lblStatus.ForeColor = Color.FromArgb(255, 171, 0);
+
                 try
                 {
-                    if (_tvController != null) { await _tvController.DisconnectAsync(); _tvController = null; }
-                    _tvController = TvControllerFactory.Create(_selectedBrand, _tvIp, chkSecure.Checked);
+                    if (_tvController != null)
+                    {
+                        await _tvController.DisconnectAsync();
+                        _tvController = null;
+                    }
+
+                    // Create appropriate controller based on brand
+                    _tvController = _selectedBrand == TvBrand.LG
+                        ? new LgTvController(_tvIp, chkSecure.Checked)
+                        : new GenericTvController(_selectedBrand, _tvIp);
+
                     await _tvController.ConnectAsync();
+
                     if (_tvController.IsConnected && _tvController.IsPaired)
                     {
                         lblStatus.Text = "✓ Connected — TV ready for calibration";
-                        lblStatus.ForeColor = DarkTheme.Success;
+                        lblStatus.ForeColor = Color.FromArgb(76, 175, 80);
                     }
                     else
                     {
                         lblStatus.Text = "⚠ Check TV — accept the pairing prompt on screen";
-                        lblStatus.ForeColor = DarkTheme.Warning;
+                        lblStatus.ForeColor = Color.FromArgb(255, 171, 0);
                     }
                 }
                 catch (Exception ex)
                 {
                     lblStatus.Text = $"✗ Failed: {ex.Message}";
-                    lblStatus.ForeColor = DarkTheme.Error;
+                    lblStatus.ForeColor = Color.FromArgb(244, 67, 54);
                     _tvController = null;
                 }
-                btnConn.Enabled = true;
+
+                btnConnect.Enabled = true;
             };
 
-            AddSpacer(flow, 6);
             var btnSkip = new Button
             {
                 Text = "Skip — manual calibration only",
-                Size = new Size((int)(250 * _dpi), (int)(32 * _dpi)),
+                Location = new Point(10, 270),
+                Size = new Size(230, 28),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = DarkTheme.SurfaceLight,
-                ForeColor = DarkTheme.TextSecondary,
-                Cursor = Cursors.Hand,
-                Margin = new Padding(0, 4, 0, 0)
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.LightGray
             };
-            btnSkip.FlatAppearance.BorderColor = DarkTheme.Border;
-            btnSkip.FlatAppearance.BorderSize = 1;
             btnSkip.Click += (_, _) => ShowStep(WizardStep.PreCalibrationSettings);
-            flow.Controls.Add(btnSkip);
 
-            return WrapInScrollPanel(flow);
+            panel.Controls.AddRange(new Control[] { lblIp, txtIp, chkSecure, btnConnect, lblStatus, btnSkip });
+
+            return panel;
         }
 
         private Panel BuildPreCalSettingsStep()
         {
-            var flow = CreateFlowPanel();
+            var panel = CreateStepPanel();
 
             string modeText = _isHdr ? "HDR10 (10-bit)" : "SDR (8-bit Rec.709)";
-            AddFlowLabel(flow, $"Calibration Mode: {modeText}",
-                fontSize: 12f, bold: true,
-                color: _isHdr ? DarkTheme.Warning : DarkTheme.AccentLight);
+            AddLabel(panel, $"Calibration Mode: {modeText}", 0, fontSize: 13f, bold: true,
+                color: _isHdr ? Color.FromArgb(255, 171, 0) : Color.FromArgb(100, 180, 255));
 
-            AddSpacer(flow, 6);
-            AddFlowLabel(flow, "Prepare your TV with these settings:", fontSize: 11f);
-            AddSpacer(flow, 4);
+            AddLabel(panel, "Prepare your TV with these settings:", 35, fontSize: 12f);
 
             if (_isHdr)
             {
-                AddFlowLabel(flow, "  1.  Picture Mode → 'Cinema' or 'Filmmaker Mode'");
-                AddFlowLabel(flow, "  2.  HDMI Ultra HD Deep Color → On (for HDR support)");
-                AddFlowLabel(flow, "  3.  Color Gamut → 'Wide' or 'Auto'");
-                AddFlowLabel(flow, "  4.  Dynamic Tone Mapping → Off");
-                AddFlowLabel(flow, "  5.  Noise Reduction / MPEG NR → Off");
-                AddFlowLabel(flow, "  6.  TruMotion / Motion Smoothing → Off");
-                AddFlowLabel(flow, "  7.  OLED Light / Backlight → 100");
+                AddLabel(panel, "  1. Picture Mode → 'Cinema' or 'Filmmaker Mode'", 60);
+                AddLabel(panel, "  2. HDMI Ultra HD Deep Color → On (for HDR support)", 83);
+                AddLabel(panel, "  3. Color Gamut → 'Wide' or 'Auto'", 106);
+                AddLabel(panel, "  4. Dynamic Tone Mapping → Off", 129);
+                AddLabel(panel, "  5. Noise Reduction / MPEG NR → Off", 152);
+                AddLabel(panel, "  6. TruMotion / Motion Smoothing → Off", 175);
+                AddLabel(panel, "  7. OLED Light / Backlight → 100", 198);
             }
             else
             {
-                AddFlowLabel(flow, "  1.  Picture Mode → 'ISF Expert (Dark Room)' or 'Cinema'");
-                AddFlowLabel(flow, "  2.  Color Space → 'Auto' (TV menu: Picture → Color Gamut)");
-                AddFlowLabel(flow, "  3.  Gamma → BT.1886 or 2.2");
-                AddFlowLabel(flow, "  4.  Color Temperature → 'Warm 2' (W50)");
-                AddFlowLabel(flow, "  5.  Dynamic Contrast → Off");
-                AddFlowLabel(flow, "  6.  Noise Reduction / MPEG NR → Off");
-                AddFlowLabel(flow, "  7.  TruMotion / Motion Smoothing → Off");
-                AddFlowLabel(flow, "  8.  Backlight → 50–80 for comfortable dark room viewing");
+                AddLabel(panel, "  1. Picture Mode → 'ISF Expert (Dark Room)' or 'Cinema'", 60);
+                AddLabel(panel, "  2. Color Space → 'Auto' (TV menu: Picture → Color Gamut)", 83);
+                AddLabel(panel, "  3. Gamma → BT.1886 or 2.2", 106);
+                AddLabel(panel, "  4. Color Temperature → 'Warm 2' (W50)", 129);
+                AddLabel(panel, "  5. Dynamic Contrast → Off", 152);
+                AddLabel(panel, "  6. Noise Reduction / MPEG NR → Off", 175);
+                AddLabel(panel, "  7. TruMotion / Motion Smoothing → Off", 198);
+                AddLabel(panel, "  8. Backlight → 50–80 for comfortable dark room viewing", 221);
             }
 
+            // Auto-apply button when TV is connected and brand supports it
             var brandCaps = TvBrandCapabilities.For(_selectedBrand);
             if (_tvController != null && _tvController.IsConnected && brandCaps.SupportsAutoApplySettings)
             {
-                AddSpacer(flow, 10);
                 var btnAutoApply = new Button
                 {
                     Text = "Auto-Apply Recommended Settings to TV",
-                    Size = new Size((int)(340 * _dpi), (int)(36 * _dpi)),
-                    BackColor = DarkTheme.AccentDark,
+                    Location = new Point(10, _isHdr ? 235 : 258),
+                    Size = new Size(300, 35),
+                    BackColor = Color.FromArgb(0, 122, 204),
                     ForeColor = Color.White,
                     FlatStyle = FlatStyle.Flat,
-                    Font = new Font("Segoe UI Semibold", 10f, FontStyle.Bold),
-                    Cursor = Cursors.Hand,
-                    Margin = new Padding(0, 6, 0, 4)
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold)
                 };
                 btnAutoApply.FlatAppearance.BorderSize = 0;
-                flow.Controls.Add(btnAutoApply);
 
                 var lblAutoStatus = new Label
                 {
                     Text = "",
                     AutoSize = true,
-                    ForeColor = DarkTheme.TextSecondary,
-                    BackColor = Color.Transparent,
-                    Margin = new Padding(0, 4, 0, 0)
+                    Location = new Point(10, _isHdr ? 278 : 300),
+                    ForeColor = Color.FromArgb(158, 158, 158)
                 };
-                flow.Controls.Add(lblAutoStatus);
 
                 btnAutoApply.Click += async (_, _) =>
                 {
                     btnAutoApply.Enabled = false;
                     lblAutoStatus.Text = "Applying settings...";
-                    lblAutoStatus.ForeColor = DarkTheme.Warning;
+                    lblAutoStatus.ForeColor = Color.FromArgb(255, 171, 0);
+
                     try
                     {
                         var tv = _tvController!;
@@ -790,54 +709,59 @@ namespace PickleCalLG.Wizard
                             await tv.SetGammaAsync("2.2");
                             await tv.SetColorTemperatureAsync("warm50");
                         }
+
                         lblAutoStatus.Text = "✓ Settings applied — verify on your TV and fine-tune if needed";
-                        lblAutoStatus.ForeColor = DarkTheme.Success;
+                        lblAutoStatus.ForeColor = Color.FromArgb(76, 175, 80);
                     }
                     catch (Exception ex)
                     {
                         lblAutoStatus.Text = $"✗ Failed: {ex.Message} — apply settings manually";
-                        lblAutoStatus.ForeColor = DarkTheme.Error;
+                        lblAutoStatus.ForeColor = Color.FromArgb(244, 67, 54);
                     }
+
                     btnAutoApply.Enabled = true;
                 };
+
+                panel.Controls.AddRange(new Control[] { btnAutoApply, lblAutoStatus });
             }
             else
             {
-                AddSpacer(flow, 8);
-                AddFlowLabel(flow, "Tip: Connect your TV (Step 4) to auto-apply these settings.",
-                    color: DarkTheme.TextMuted, fontSize: 9f);
+                int yOffset = _isHdr ? 235 : 258;
+                AddLabel(panel, "Tip: Connect your TV (Step 4) to auto-apply these settings.", yOffset,
+                    color: Color.FromArgb(158, 158, 158), fontSize: 10f);
             }
 
-            return WrapInScrollPanel(flow);
+            return panel;
         }
 
         private Panel BuildBaselineMeasurementStep()
         {
-            var flow = CreateFlowPanel();
+            var panel = CreateStepPanel();
 
-            AddFlowLabel(flow, "Taking a baseline measurement to check your current display state.", fontSize: 11f);
-            AddSpacer(flow, 8);
-            AddFlowLabel(flow, "What happens next:", bold: true);
-            AddFlowLabel(flow, "  1.  A white test pattern will be displayed on your TV");
-            AddFlowLabel(flow, "  2.  Your meter will measure the white point");
-            AddFlowLabel(flow, "  3.  Results will show how far off the display currently is");
-            AddSpacer(flow, 8);
-            AddFlowLabel(flow, "This helps us understand what needs to be corrected.");
-            AddSpacer(flow, 10);
-            AddFlowLabel(flow, "Make sure:", bold: true);
-            AddFlowLabel(flow, "  ✓  Meter is pointed at the TV screen center");
-            AddFlowLabel(flow, "  ✓  Room is darkened");
-            AddFlowLabel(flow, "  ✓  No reflections on the screen");
-            AddFlowLabel(flow, "  ✓  TV has been on for at least 10 minutes (warm-up)");
-            AddSpacer(flow, 12);
-            AddFlowLabel(flow, "Click Next to proceed to calibration.", color: DarkTheme.Success);
+            AddLabel(panel, "Taking a baseline measurement to check your current display state.", 0, fontSize: 12f);
 
-            return WrapInScrollPanel(flow);
+            AddLabel(panel, "What happens next:", 35, bold: true);
+            AddLabel(panel, "  1. A white test pattern will be displayed on your TV", 60);
+            AddLabel(panel, "  2. Your meter will measure the white point", 83);
+            AddLabel(panel, "  3. Results will show how far off the display currently is", 106);
+
+            AddLabel(panel, "This helps us understand what needs to be corrected.", 145);
+
+            AddLabel(panel, "Make sure:", 180, bold: true);
+            AddLabel(panel, "  ✓  Meter is pointed at the TV screen center", 205);
+            AddLabel(panel, "  ✓  Room is darkened", 228);
+            AddLabel(panel, "  ✓  No reflections on the screen", 251);
+            AddLabel(panel, "  ✓  TV has been on for at least 10 minutes (warm-up)", 274);
+
+            AddLabel(panel, "Click Next to proceed to calibration.", 315,
+                color: Color.FromArgb(76, 175, 80), fontSize: 11f);
+
+            return panel;
         }
 
         private Panel BuildRunCalibrationStep()
         {
-            var flow = CreateFlowPanel();
+            var panel = CreateStepPanel();
 
             string profileName = _profile switch
             {
@@ -848,31 +772,31 @@ namespace PickleCalLG.Wizard
                 _ => "Custom"
             };
 
-            AddFlowLabel(flow, $"Ready to run: {profileName} Calibration", fontSize: 13f, bold: true);
-            AddSpacer(flow, 8);
-            AddFlowLabel(flow, "The calibration process will:", fontSize: 11f);
-            AddFlowLabel(flow, "  1.  Measure grayscale response (dark → bright)");
-            AddFlowLabel(flow, "  2.  Adjust white balance for accurate grays");
-            AddFlowLabel(flow, "  3.  Measure and correct primary colors (if full profile)");
-            AddFlowLabel(flow, "  4.  Verify final accuracy");
-            AddSpacer(flow, 10);
-            AddFlowLabel(flow, "During calibration:", bold: true);
-            AddFlowLabel(flow, "  •  Test patterns will appear on your TV — this is normal");
-            AddFlowLabel(flow, "  •  Don't touch the TV or move the meter");
-            AddFlowLabel(flow, "  •  The process is fully automatic");
+            AddLabel(panel, $"Ready to run: {profileName} Calibration", 0, fontSize: 14f, bold: true);
 
-            AddSpacer(flow, 10);
+            AddLabel(panel, "The calibration process will:", 40, fontSize: 12f);
+            AddLabel(panel, "  1. Measure grayscale response (dark → bright)", 65);
+            AddLabel(panel, "  2. Adjust white balance for accurate grays", 88);
+            AddLabel(panel, "  3. Measure and correct primary colors (if full profile)", 111);
+            AddLabel(panel, "  4. Verify final accuracy", 134);
+
+            AddLabel(panel, "During calibration:", 175, bold: true);
+            AddLabel(panel, "  •  Test patterns will appear on your TV — this is normal", 200);
+            AddLabel(panel, "  •  Don't touch the TV or move the meter", 223);
+            AddLabel(panel, "  •  The process is fully automatic", 246);
+
             var brandCapabilities = TvBrandCapabilities.For(_selectedBrand);
             if (brandCapabilities.SupportsAutoCalWhiteBalance)
             {
-                AddFlowLabel(flow, $"✓ Automated calibration available for {brandCapabilities.DisplayName} — white balance and CMS will be adjusted automatically.",
-                    color: DarkTheme.Success);
+                AddLabel(panel, $"✓ AutoCal is available for {brandCapabilities.DisplayName} — white balance and CMS will be adjusted automatically.", 270,
+                    color: Color.FromArgb(76, 175, 80), fontSize: 11f);
             }
             else
             {
-                AddFlowLabel(flow, $"Automated calibration is not available for {brandCapabilities.DisplayName}.", color: DarkTheme.Warning);
-                AddFlowLabel(flow, "Measurements will be taken for analysis — adjust settings manually using your TV remote.",
-                    color: DarkTheme.TextSecondary, fontSize: 9f);
+                AddLabel(panel, $"AutoCal is not available for {brandCapabilities.DisplayName}.", 270,
+                    color: Color.FromArgb(255, 171, 0), fontSize: 11f);
+                AddLabel(panel, "Measurements will be taken for analysis — adjust settings manually using your TV remote.", 293,
+                    color: Color.FromArgb(158, 158, 158), fontSize: 10f);
             }
 
             string estimatedTime = _profile switch
@@ -883,60 +807,66 @@ namespace PickleCalLG.Wizard
                 CalibrationProfile.FullHdr => "~45 minutes",
                 _ => "varies"
             };
-            AddSpacer(flow, 6);
-            AddFlowLabel(flow, $"Estimated time: {estimatedTime}", color: DarkTheme.Warning, fontSize: 11f);
-            AddSpacer(flow, 6);
-            AddFlowLabel(flow, "Click 'Start Calibration' to begin.", color: DarkTheme.Success, bold: true);
+            AddLabel(panel, $"Estimated time: {estimatedTime}", 320, fontSize: 12f,
+                color: Color.FromArgb(255, 171, 0));
 
-            return WrapInScrollPanel(flow);
+            AddLabel(panel, "Click 'Start Calibration' to begin.", 350,
+                color: Color.FromArgb(76, 175, 80), fontSize: 12f, bold: true);
+
+            return panel;
         }
 
         private Panel BuildVerifyResultsStep()
         {
-            var flow = CreateFlowPanel();
+            var panel = CreateStepPanel();
 
-            AddFlowLabel(flow, "Calibration measurements are complete!", fontSize: 13f, bold: true, color: DarkTheme.Success);
-            AddSpacer(flow, 8);
-            AddFlowLabel(flow, "Check the Analysis tab in the main window to review:", fontSize: 11f);
-            AddFlowLabel(flow, "  •  CIE Diagram — color accuracy vs target gamut");
-            AddFlowLabel(flow, "  •  Gamma Curve — tonal response (should track target)");
-            AddFlowLabel(flow, "  •  RGB Balance — grayscale neutrality");
-            AddFlowLabel(flow, "  •  Delta E — overall error (< 3 is good, < 1 is excellent)");
-            AddFlowLabel(flow, "  •  CCT Tracking — color temperature consistency");
-            AddSpacer(flow, 10);
-            AddFlowLabel(flow, "What to look for:", bold: true);
-            AddFlowLabel(flow, "  ✓  Delta E average below 3.0 — good calibration", color: DarkTheme.Success);
-            AddFlowLabel(flow, "  ✓  Delta E average below 1.0 — excellent calibration", color: DarkTheme.Success);
-            AddFlowLabel(flow, "  ✗  Delta E values above 5.0 may need manual adjustment", color: DarkTheme.Warning);
-            AddSpacer(flow, 10);
-            AddFlowLabel(flow, "You can export results via the Analysis tab (CSV or HTML report).");
+            AddLabel(panel, "Calibration measurements are complete!", 0, fontSize: 14f, bold: true,
+                color: Color.FromArgb(76, 175, 80));
 
-            return WrapInScrollPanel(flow);
+            AddLabel(panel, "Check the Analysis tab in the main window to review:", 40, fontSize: 12f);
+            AddLabel(panel, "  •  CIE Diagram — color accuracy vs target gamut", 65);
+            AddLabel(panel, "  •  Gamma Curve — tonal response (should track target)", 88);
+            AddLabel(panel, "  •  RGB Balance — grayscale neutrality", 111);
+            AddLabel(panel, "  •  Delta E — overall error (< 3 is good, < 1 is excellent)", 134);
+            AddLabel(panel, "  •  CCT Tracking — color temperature consistency", 157);
+
+            AddLabel(panel, "What to look for:", 200, bold: true);
+            AddLabel(panel, "  ✓  Delta E average below 3.0 — good calibration", 225,
+                color: Color.FromArgb(76, 175, 80));
+            AddLabel(panel, "  ✓  Delta E average below 1.0 — excellent calibration", 248,
+                color: Color.FromArgb(76, 175, 80));
+            AddLabel(panel, "  ✗  Delta E values above 5.0 may need manual adjustment", 271,
+                color: Color.FromArgb(255, 171, 0));
+
+            AddLabel(panel, "You can export results via the Analysis tab (CSV or HTML report).", 310);
+
+            return panel;
         }
 
         private Panel BuildCompleteStep()
         {
-            var flow = CreateFlowPanel();
+            var panel = CreateStepPanel();
 
-            AddFlowLabel(flow, "🎉 Calibration Wizard Complete!", fontSize: 14f, bold: true, color: DarkTheme.Success);
-            AddSpacer(flow, 8);
-            AddFlowLabel(flow, "Your TV has been calibrated. Here's what to do next:", fontSize: 11f);
-            AddSpacer(flow, 4);
-            AddFlowLabel(flow, "  1.  Enjoy your calibrated picture!", fontSize: 11f);
-            AddFlowLabel(flow, "  2.  Check the Analysis tab for detailed results");
-            AddFlowLabel(flow, "  3.  Export a report for your records (HTML or CSV)");
-            AddFlowLabel(flow, "  4.  Re-run the wizard periodically (display drift over time)");
-            AddSpacer(flow, 10);
-            AddFlowLabel(flow, "Tips:", bold: true);
-            AddFlowLabel(flow, "  •  If the image looks too warm/orange, your eyes will adjust in a few days");
-            AddFlowLabel(flow, "  •  Use the calibrated picture mode for movies and TV shows");
-            AddFlowLabel(flow, "  •  For gaming, you may want a separate uncalibrated mode");
-            AddFlowLabel(flow, "  •  OLED screens should be re-calibrated every 6–12 months");
-            AddSpacer(flow, 12);
-            AddFlowLabel(flow, "Click 'Finish' to close the wizard and return to PickleCal.",
-                color: DarkTheme.AccentLight);
+            AddLabel(panel, "🎉 Calibration Wizard Complete!", 0, fontSize: 16f, bold: true,
+                color: Color.FromArgb(76, 175, 80));
 
-            return WrapInScrollPanel(flow);
+            AddLabel(panel, "Your TV has been calibrated. Here's what to do next:", 45, fontSize: 12f);
+
+            AddLabel(panel, "  1. Enjoy your calibrated picture!", 75, fontSize: 12f);
+            AddLabel(panel, "  2. Check the Analysis tab for detailed results", 100);
+            AddLabel(panel, "  3. Export a report for your records (HTML or CSV)", 123);
+            AddLabel(panel, "  4. Re-run the wizard periodically (display drift over time)", 146);
+
+            AddLabel(panel, "Tips:", 190, bold: true);
+            AddLabel(panel, "  •  If the image looks too warm/orange, your eyes will adjust in a few days", 215);
+            AddLabel(panel, "  •  Use the calibrated picture mode for movies and TV shows", 238);
+            AddLabel(panel, "  •  For gaming, you may want a separate uncalibrated mode", 261);
+            AddLabel(panel, "  •  OLED screens should be re-calibrated every 6-12 months", 284);
+
+            AddLabel(panel, "Click 'Finish' to close the wizard and return to PickleCal.", 325,
+                color: Color.FromArgb(100, 180, 255), fontSize: 11f);
+
+            return panel;
         }
 
         // ---------- Calibration Runner ----------
@@ -948,55 +878,39 @@ namespace PickleCalLG.Wizard
             btnNext.Enabled = false;
             btnCancel.Text = "Stop";
 
+            // Show progress UI
             panelContent.Controls.Clear();
-
-            var layout = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                RowCount = 3,
-                ColumnCount = 1,
-                BackColor = DarkTheme.Background,
-                Padding = new Padding(8)
-            };
-            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            var progressPanel = CreateStepPanel();
 
             var lblProgress = new Label
             {
                 Text = "Starting calibration...",
+                Location = new Point(10, 0),
                 AutoSize = true,
-                Font = new Font("Segoe UI Semibold", 11f, FontStyle.Bold),
-                ForeColor = DarkTheme.AccentLight,
-                Dock = DockStyle.Fill,
-                Margin = new Padding(4, 4, 4, 8),
-                BackColor = Color.Transparent
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(100, 180, 255)
             };
 
             var prgCal = new ProgressBar
             {
-                Dock = DockStyle.Fill,
-                Height = 22,
+                Location = new Point(10, 35),
+                Size = new Size(600, 25),
                 Style = ProgressBarStyle.Marquee,
-                MarqueeAnimationSpeed = 30,
-                Margin = new Padding(4, 0, 4, 8)
+                MarqueeAnimationSpeed = 30
             };
 
             var lstLog = new ListBox
             {
-                Dock = DockStyle.Fill,
-                BackColor = DarkTheme.SurfaceDark,
-                ForeColor = DarkTheme.TextPrimary,
-                BorderStyle = BorderStyle.FixedSingle,
-                Font = DarkTheme.MonoFont,
-                Margin = new Padding(4)
+                Location = new Point(10, 70),
+                Size = new Size(600, 250),
+                BackColor = Color.FromArgb(20, 20, 20),
+                ForeColor = Color.FromArgb(200, 200, 200),
+                BorderStyle = BorderStyle.FixedSingle
             };
 
-            layout.Controls.Add(lblProgress, 0, 0);
-            layout.Controls.Add(prgCal, 0, 1);
-            layout.Controls.Add(lstLog, 0, 2);
-            panelContent.Controls.Add(layout);
+            progressPanel.Controls.AddRange(new Control[] { lblProgress, prgCal, lstLog });
+            progressPanel.Dock = DockStyle.Fill;
+            panelContent.Controls.Add(progressPanel);
 
             void Log(string msg)
             {
@@ -1012,9 +926,11 @@ namespace PickleCalLG.Wizard
             try
             {
                 Log("Calibration wizard started");
+
                 if (_pickleGen != null && _pickleGen.IsConnected)
                 {
                     Log("PickleGen connected — configuring display mode...");
+
                     if (_isHdr)
                     {
                         await _pickleGen.SetupForHdrCalibrationAsync();
@@ -1025,19 +941,26 @@ namespace PickleCalLG.Wizard
                         await _pickleGen.SetupForSdrCalibrationAsync();
                         Log("Display configured for SDR (8-bit)");
                     }
+
+                    // Send initial black pattern
                     await _pickleGen.SendBlackAsync();
                     Log("Black pattern displayed — ready for measurements");
+
+                    // Wait for meter warm-up
                     Log("Waiting 3 seconds for meter warm-up...");
                     await Task.Delay(3000, _wizardCts.Token);
                 }
+
+                // Dispatch to the main form's measurement system
                 Log("Starting measurement sequences via main window...");
                 Log("Check the Meters tab for detailed progress.");
                 Log("");
                 Log("The wizard has configured PickleGen and your session.");
                 Log("Use the main window's Meters tab to run measurement sequences,");
-                Log("or use the White Balance tab for automated calibration.");
+                Log("or use AutoCal on the White Balance tab for automatic calibration.");
                 Log("");
                 Log("Calibration configuration complete.");
+
                 lblProgress.Text = "Configuration complete — ready for measurements";
                 prgCal.Style = ProgressBarStyle.Continuous;
                 prgCal.Value = 100;
@@ -1059,111 +982,62 @@ namespace PickleCalLG.Wizard
             btnCancel.Text = "Cancel";
         }
 
-        // ---------- Flow Layout Helpers ----------
+        // ---------- Helpers ----------
 
-        private FlowLayoutPanel CreateFlowPanel()
+        private static Panel CreateStepPanel()
         {
-            return new FlowLayoutPanel
-            {
-                FlowDirection = FlowDirection.TopDown,
-                WrapContents = false,
-                AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                BackColor = DarkTheme.Background,
-                Padding = Padding.Empty,
-                Margin = Padding.Empty
-            };
-        }
-
-        private Panel WrapInScrollPanel(FlowLayoutPanel flow)
-        {
-            var scroll = new Panel
+            return new Panel
             {
                 AutoScroll = true,
-                BackColor = DarkTheme.Background
+                BackColor = Color.FromArgb(30, 30, 30)
             };
-            flow.MaximumSize = new Size(0, 0); // unconstrain for measuring
-            flow.Dock = DockStyle.Top;
-            flow.AutoSize = true;
-            scroll.Controls.Add(flow);
-
-            // Update flow width when scroll panel resizes
-            scroll.Resize += (_, _) =>
-            {
-                int w = scroll.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - 4;
-                flow.MaximumSize = new Size(w, 0);
-                flow.MinimumSize = new Size(w, 0);
-                foreach (Control c in flow.Controls)
-                {
-                    if (c is Label lbl && lbl.AutoSize)
-                        lbl.MaximumSize = new Size(w - 8, 0);
-                }
-            };
-
-            return scroll;
         }
 
-        private static Label AddFlowLabel(FlowLayoutPanel flow, string text,
-            float fontSize = 10f, bool bold = false, Color? color = null)
+        private static Label AddLabel(Panel panel, string text, int top,
+            float fontSize = 11f, bool bold = false, Color? color = null)
         {
             var label = new Label
             {
                 Text = text,
                 AutoSize = true,
+                Location = new Point(10, top),
                 Font = new Font("Segoe UI", fontSize, bold ? FontStyle.Bold : FontStyle.Regular),
-                ForeColor = color ?? DarkTheme.TextPrimary,
-                BackColor = Color.Transparent,
-                Margin = new Padding(0, 2, 0, 2),
-                MaximumSize = new Size(700, 0)
+                ForeColor = color ?? Color.FromArgb(224, 224, 224),
+                MaximumSize = new Size(600, 0)
             };
-            flow.Controls.Add(label);
+            panel.Controls.Add(label);
             return label;
         }
 
-        private static void AddSpacer(FlowLayoutPanel flow, int height)
-        {
-            flow.Controls.Add(new Panel
-            {
-                Size = new Size(1, height),
-                BackColor = Color.Transparent,
-                Margin = Padding.Empty
-            });
-        }
-
-        private static RadioButton AddRadio(FlowLayoutPanel flow, string text,
-            bool isChecked, Action onChecked)
-        {
-            var rb = new RadioButton
-            {
-                Text = text,
-                AutoSize = true,
-                ForeColor = DarkTheme.TextPrimary,
-                BackColor = Color.Transparent,
-                Checked = isChecked,
-                Margin = new Padding(0, 2, 0, 2),
-                Font = DarkTheme.DefaultFont
-            };
-            rb.CheckedChanged += (_, _) => { if (rb.Checked) onChecked(); };
-            flow.Controls.Add(rb);
-            return rb;
-        }
-
-        // ---------- Public API ----------
-
+        /// <summary>Access the configured PickleGen client for the main form to use.</summary>
         public PickleCalRemoteClient? GetPickleGenClient() => _pickleGen;
+
+        /// <summary>Access the connected TV controller for the main form to use.</summary>
         public ITvController? GetTvController() => _tvController;
+
+        /// <summary>Access the selected TV brand.</summary>
         public TvBrand SelectedBrand => _selectedBrand;
+
+        /// <summary>Access the TV IP entered in the wizard.</summary>
         public string GetTvIp() => _tvIp;
+
+        /// <summary>Whether HDR mode was selected.</summary>
         public bool IsHdrMode => _isHdr;
+
+        /// <summary>The selected calibration profile.</summary>
         public CalibrationProfile SelectedProfile => _profile;
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing) _wizardCts?.Dispose();
+            if (disposing)
+            {
+                _wizardCts?.Dispose();
+            }
             base.Dispose(disposing);
         }
     }
 
+    /// <summary>Calibration profile presets for the wizard.</summary>
     public enum CalibrationProfile
     {
         QuickSdr,

@@ -10,26 +10,23 @@ namespace PickleCalLG
         /// <summary>No specific TV brand — manual calibration only.</summary>
         Other = 0,
 
-        /// <summary>LG webOS TVs — full automated calibration support via SSAP WebSocket API.</summary>
+        /// <summary>LG webOS TVs — full AutoCal support via SSAP WebSocket API.</summary>
         LG = 1,
 
-        /// <summary>Samsung TVs — automated calibration support via SmartThings integration.</summary>
+        /// <summary>Samsung TVs — measurement only, no AutoCal (future: SmartThings API).</summary>
         Samsung = 2,
 
-        /// <summary>Sony Bravia TVs — automated calibration support via Bravia Professional Calibration API.</summary>
+        /// <summary>Sony Bravia TVs — measurement only, no AutoCal (future: Bravia REST API).</summary>
         Sony = 3,
 
-        /// <summary>TCL TVs — automated calibration support via TCL calibration API.</summary>
+        /// <summary>TCL TVs — measurement only.</summary>
         TCL = 4,
 
         /// <summary>Hisense TVs — measurement only.</summary>
         Hisense = 5,
 
         /// <summary>Vizio TVs — measurement only.</summary>
-        Vizio = 6,
-
-        /// <summary>Panasonic TVs — automated calibration support via Panasonic calibration API.</summary>
-        Panasonic = 7
+        Vizio = 6
     }
 
     /// <summary>
@@ -75,7 +72,7 @@ namespace PickleCalLG
             Description = description;
         }
 
-        /// <summary>Whether any form of automated calibration is supported.</summary>
+        /// <summary>Whether any form of AutoCal is supported.</summary>
         public bool SupportsAutoCal => SupportsAutoCalWhiteBalance || SupportsAutoCalCms;
 
         /// <summary>Get capabilities for a given brand.</summary>
@@ -88,43 +85,34 @@ namespace PickleCalLG
                 autoCalCms: true,
                 readSettings: true,
                 autoApplySettings: true,
-                "Full support — remote connection, automated white balance + CMS, picture settings control"),
+                "Full support — remote connection, AutoCal (white balance + CMS), picture settings control"),
 
             TvBrand.Samsung => new TvBrandCapabilities(
                 TvBrand.Samsung, "Samsung",
-                remoteConnection: true,
-                autoCalWb: true,
-                autoCalCms: true,
+                remoteConnection: false,
+                autoCalWb: false,
+                autoCalCms: false,
                 readSettings: false,
                 autoApplySettings: false,
-                "Automated calibration — white balance + CMS via SmartThings calibration API"),
+                "Measurement and analysis only — manual TV adjustments required"),
 
             TvBrand.Sony => new TvBrandCapabilities(
                 TvBrand.Sony, "Sony",
-                remoteConnection: true,
-                autoCalWb: true,
-                autoCalCms: true,
+                remoteConnection: false,
+                autoCalWb: false,
+                autoCalCms: false,
                 readSettings: false,
                 autoApplySettings: false,
-                "Automated calibration — white balance + CMS via Bravia Professional Calibration API"),
+                "Measurement and analysis only — manual TV adjustments required"),
 
             TvBrand.TCL => new TvBrandCapabilities(
                 TvBrand.TCL, "TCL",
-                remoteConnection: true,
-                autoCalWb: true,
-                autoCalCms: true,
+                remoteConnection: false,
+                autoCalWb: false,
+                autoCalCms: false,
                 readSettings: false,
                 autoApplySettings: false,
-                "Automated calibration — white balance + CMS via TCL calibration API (3D LUT)"),
-
-            TvBrand.Panasonic => new TvBrandCapabilities(
-                TvBrand.Panasonic, "Panasonic",
-                remoteConnection: true,
-                autoCalWb: true,
-                autoCalCms: true,
-                readSettings: false,
-                autoApplySettings: false,
-                "Automated calibration — white balance + CMS via Panasonic calibration API"),
+                "Measurement and analysis only — manual TV adjustments required"),
 
             TvBrand.Hisense => new TvBrandCapabilities(
                 TvBrand.Hisense, "Hisense",
@@ -160,7 +148,6 @@ namespace PickleCalLG
             TvBrand.LG,
             TvBrand.Samsung,
             TvBrand.Sony,
-            TvBrand.Panasonic,
             TvBrand.TCL,
             TvBrand.Hisense,
             TvBrand.Vizio,

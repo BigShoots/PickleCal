@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
@@ -27,14 +26,13 @@ namespace PickleCalLG
         private PickleCalRemoteClient? _pickleGenRemote;
         private string _tvIp = "";
         private MeterManager _meterManager;
-        private ArgyllSpotreadDiscoveryService _argyllDiscovery;
         private readonly CancellationTokenSource _meterCancellation = new();
         private MeterMeasurementState _lastMeterState = MeterMeasurementState.Disconnected;
         private MeasurementQueueRunner? _sequenceRunner;
         private CancellationTokenSource? _sequenceCancellation;
         private bool _sequenceRunning;
 
-        private DarkTabControl tabControl1 = null!;
+        private TabControl tabControl1 = null!;
         private TabPage tabPageConnection = null!;
         private TabPage tabPageTvControl = null!;
         private TabPage tabPagePictureSettings = null!;
@@ -94,7 +92,7 @@ namespace PickleCalLG
 
         // Analysis tab pages
         private TabPage tabPageAnalysis = null!;
-        private DarkTabControl tabAnalysisViews = null!;
+        private TabControl tabAnalysisViews = null!;
         private TabPage tabAnalysisCie = null!;
         private TabPage tabAnalysisGamma = null!;
         private TabPage tabAnalysisRgb = null!;
@@ -174,11 +172,9 @@ namespace PickleCalLG
             DarkTheme.Apply(this);
             StyleAccentControls();
 
-            _argyllDiscovery = new ArgyllSpotreadDiscoveryService();
-            _argyllDiscovery.StatusChanged += OnArgyllDiscoveryStatus;
             _meterManager = new MeterManager(
                 new CompositeMeterDiscoveryService(
-                    _argyllDiscovery,
+                    new ArgyllSpotreadDiscoveryService(),
                     new SimulatedMeterDiscoveryService()));
             _meterManager.MeterStateChanged += MeterManagerOnStateChanged;
             _meterManager.MeasurementAvailable += MeterManagerOnMeasurement;
@@ -221,7 +217,7 @@ namespace PickleCalLG
 
         private void InitializeComponent()
         {
-            tabControl1 = new DarkTabControl();
+            tabControl1 = new TabControl();
             tabPageConnection = new TabPage();
             tabPageTvControl = new TabPage();
             tabPagePictureSettings = new TabPage();
@@ -277,7 +273,7 @@ namespace PickleCalLG
 
             // Analysis tab + sub-tabs + chart controls
             tabPageAnalysis = new TabPage();
-            tabAnalysisViews = new DarkTabControl();
+            tabAnalysisViews = new TabControl();
             tabAnalysisCie = new TabPage();
             tabAnalysisGamma = new TabPage();
             tabAnalysisRgb = new TabPage();
@@ -642,7 +638,7 @@ namespace PickleCalLG
             // btnAutoCalFull
             btnAutoCalFull.Location = new Point(435, 30);
             btnAutoCalFull.Size = new Size(130, 30);
-            btnAutoCalFull.Text = "Full Calibration";
+            btnAutoCalFull.Text = "Full AutoCal";
             btnAutoCalFull.UseVisualStyleBackColor = true;
             btnAutoCalFull.Click += btnAutoCalFull_Click;
 
@@ -676,7 +672,7 @@ namespace PickleCalLG
             // lblAutoCalStatus
             lblAutoCalStatus.AutoSize = true;
             lblAutoCalStatus.Location = new Point(15, 140);
-            lblAutoCalStatus.Text = "Ready";
+            lblAutoCalStatus.Text = "AutoCal: Ready";
 
             // ---------- PickleGen Easy Mode controls ----------
 
@@ -1211,10 +1207,9 @@ namespace PickleCalLG
             _dataGrid.Dock = DockStyle.Fill;
 
             // MainForm
-            AutoScaleDimensions = new SizeF(96F, 96F);
-            AutoScaleMode = AutoScaleMode.Dpi;
+            AutoScaleDimensions = new SizeF(6F, 13F);
+            AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1200, 780);
-            MinimumSize = new Size(900, 600);
             Controls.Add(tabControl1);
             Name = "MainForm";
             Text = "PickleCal";
@@ -1315,7 +1310,9 @@ namespace PickleCalLG
             try
             {
                 // Create correct controller based on brand
-                _tvController = TvControllerFactory.Create(_selectedBrand, _tvIp, chkSecureConnection.Checked);
+                _tvController = _selectedBrand == TvBrand.LG
+                    ? new LgTvController(_tvIp, chkSecureConnection.Checked)
+                    : new GenericTvController(_selectedBrand, _tvIp);
 
                 _tvController.OnStatusChange += TvController_OnStatusChange;
                 _tvController.OnDisconnect += TvController_OnDisconnect;
@@ -1417,7 +1414,7 @@ namespace PickleCalLG
 
             if (!caps.SupportsAutoCalWhiteBalance)
             {
-                lblAutoCalStatus.Text = $"Not available for {caps.DisplayName} TVs — measurement only";
+                lblAutoCalStatus.Text = $"AutoCal: Not available for {caps.DisplayName} TVs — measurement only";
             }
         }
 
@@ -1793,7 +1790,7 @@ namespace PickleCalLG
             AppendSequenceLog($"New session created: {displayName}");
         }
 
-        // ── Automated Calibration handlers ──
+        // ── AutoCal handlers ──
 
         private async void btnAutoCal2ptWb_Click(object? sender, EventArgs e)
         {
@@ -1822,17 +1819,17 @@ namespace PickleCalLG
             {
                 var results = await engine.RunFullAutoCalAsync(_autoCalCancellation.Token);
                 foreach (var r in results)
-                    PostSequenceLog($"Calibration result: {r}");
+                    PostSequenceLog($"AutoCal result: {r}");
             }
             catch (OperationCanceledException)
             {
-                PostSequenceLog("Calibration cancelled.");
-                lblAutoCalStatus.Text = "Cancelled";
+                PostSequenceLog("AutoCal cancelled.");
+                lblAutoCalStatus.Text = "AutoCal: Cancelled";
             }
             catch (Exception ex)
             {
-                PostSequenceLog($"Calibration error: {ex.Message}");
-                lblAutoCalStatus.Text = $"Error - {ex.Message}";
+                PostSequenceLog($"AutoCal error: {ex.Message}");
+                lblAutoCalStatus.Text = $"AutoCal: Error - {ex.Message}";
             }
             finally
             {
@@ -1851,7 +1848,7 @@ namespace PickleCalLG
         {
             if (_tvController == null || !_tvController.IsConnected)
             {
-                MessageBox.Show("Not connected to TV", "Calibration", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Not connected to TV", "AutoCal", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
             await _tvController.ResetWhiteBalanceAsync();
@@ -1862,7 +1859,7 @@ namespace PickleCalLG
         {
             if (_tvController == null || !_tvController.IsConnected)
             {
-                MessageBox.Show("Not connected to TV", "Calibration", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Not connected to TV", "AutoCal", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
             await _tvController.ResetCmsAsync();
@@ -1881,17 +1878,17 @@ namespace PickleCalLG
             {
                 var phase = phaseSelector(engine);
                 var result = await phase(_autoCalCancellation.Token);
-                PostSequenceLog($"Calibration result: {result}");
+                PostSequenceLog($"AutoCal result: {result}");
             }
             catch (OperationCanceledException)
             {
-                PostSequenceLog("Calibration cancelled.");
-                lblAutoCalStatus.Text = "Cancelled";
+                PostSequenceLog("AutoCal cancelled.");
+                lblAutoCalStatus.Text = "AutoCal: Cancelled";
             }
             catch (Exception ex)
             {
-                PostSequenceLog($"Calibration error: {ex.Message}");
-                lblAutoCalStatus.Text = $"Error - {ex.Message}";
+                PostSequenceLog($"AutoCal error: {ex.Message}");
+                lblAutoCalStatus.Text = $"AutoCal: Error - {ex.Message}";
             }
             finally
             {
@@ -1906,23 +1903,23 @@ namespace PickleCalLG
             var caps = TvBrandCapabilities.For(_selectedBrand);
             if (!caps.SupportsAutoCalWhiteBalance)
             {
-                MessageBox.Show($"Automated calibration is not supported for {caps.DisplayName} TVs.\n\nThis feature requires a TV brand with remote white balance control.",
-                    "Calibration", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show($"AutoCal is not supported for {caps.DisplayName} TVs.\n\nAutoCal requires a TV brand with remote white balance control (currently LG only).",
+                    "AutoCal", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return false;
             }
             if (_tvController == null || !_tvController.IsConnected)
             {
-                MessageBox.Show($"Connect to the {caps.DisplayName} TV first.", "Calibration", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show($"Connect to the {caps.DisplayName} TV first.", "AutoCal", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return false;
             }
             if (_lastMeterState != MeterMeasurementState.Idle)
             {
-                MessageBox.Show("Meter must be connected and idle.", "Calibration", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Meter must be connected and idle.", "AutoCal", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return false;
             }
             if (_patternMode == PatternPlaybackMode.Manual)
             {
-                MessageBox.Show("Select a pattern source (PGenerator, Android PGen, PickleGen Easy, or LG TV).", "Calibration", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Select a pattern source (PGenerator, Android PGen, PickleGen Easy, or LG TV).", "AutoCal", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return false;
             }
             return true;
@@ -1935,8 +1932,8 @@ namespace PickleCalLG
                 _meterManager,
                 async (r, g, b, token) =>
                 {
-                    var step = new MeasurementStep("Calibration", r / 2.55, MeterMeasurementMode.Display,
-                        TimeSpan.Zero, false, $"Cal R{r} G{g} B{b}",
+                    var step = new MeasurementStep("AutoCal", r / 2.55, MeterMeasurementMode.Display,
+                        TimeSpan.Zero, false, $"AutoCal R{r} G{g} B{b}",
                         MeasurementCategory.Free, r, g, b);
                     await HandleSequencePatternAsync(step, token);
                 },
@@ -1961,7 +1958,7 @@ namespace PickleCalLG
                 return;
             }
 
-            lblAutoCalStatus.Text = $"[{progress.Phase}] {progress.Status}";
+            lblAutoCalStatus.Text = $"AutoCal: [{progress.Phase}] {progress.Status}";
             int percent = progress.TotalSteps > 0
                 ? (int)(progress.CurrentStep * 100.0 / progress.TotalSteps)
                 : 0;
@@ -2796,25 +2793,7 @@ namespace PickleCalLG
                 lblMeterStatus.Text = "Meter status: scanning...";
                 await _meterManager.RefreshMetersAsync(_meterCancellation.Token);
                 PopulateMeterList();
-
-                // Check for driver issues detected during discovery
-                if (_argyllDiscovery.DriverIssueMessage != null)
-                {
-                    lblMeterStatus.Text = "Meter status: driver issue — see details";
-                    await OfferDriverInstallAsync();
-                }
-                else if (_meterManager.KnownMeters.Count > 0)
-                {
-                    lblMeterStatus.Text = "Meter status: select a device";
-                }
-                else if (_argyllDiscovery.DetectedHardware.Count > 0)
-                {
-                    lblMeterStatus.Text = "Meter status: colorimeter found but ArgyllCMS unavailable";
-                }
-                else
-                {
-                    lblMeterStatus.Text = "Meter status: no meters found — connect a colorimeter";
-                }
+                lblMeterStatus.Text = _meterManager.KnownMeters.Count > 0 ? "Meter status: select a device" : "Meter status: no meters found";
             }
             catch (OperationCanceledException)
             {
@@ -2828,93 +2807,6 @@ namespace PickleCalLG
             {
                 ToggleMeterControls(true);
             }
-        }
-
-        private async Task OfferDriverInstallAsync()
-        {
-            var hw = _argyllDiscovery.DetectedHardware.FirstOrDefault();
-            if (hw == null) return;
-
-            var result = MessageBox.Show(
-                $"Your {hw.Name} was detected, but it's using the \"{hw.CurrentDriver}\" driver.\n\n" +
-                "PickleCal requires the WinUSB driver to communicate with the colorimeter.\n\n" +
-                "Would you like PickleCal to attempt to install the correct driver automatically?\n" +
-                "(This will require administrator permission.)",
-                "USB Driver Configuration Required",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Warning);
-
-            if (result != DialogResult.Yes) return;
-
-            lblMeterStatus.Text = "Meter status: installing WinUSB driver...";
-            try
-            {
-                // Create the INF for this specific device, then attempt installation
-                ArgyllCmsManager.CreateWinUsbInf(hw.Vid, hw.Pid, hw.Name);
-                bool success = await ArgyllCmsManager.TryInstallWinUsbDriverAsync(hw.InstanceId);
-
-                if (success)
-                {
-                    MessageBox.Show(
-                        "WinUSB driver installed successfully!\n\n" +
-                        "Please unplug and re-plug your colorimeter, then click 'Scan for Meters' again.",
-                        "Driver Installed",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
-                    lblMeterStatus.Text = "Meter status: driver installed — reconnect device and rescan";
-                }
-                else
-                {
-                    ShowManualDriverInstructions(hw.Name);
-                }
-            }
-            catch (System.ComponentModel.Win32Exception)
-            {
-                // User declined the UAC elevation prompt
-                ShowManualDriverInstructions(hw.Name);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[MainForm] Driver install failed: {ex.Message}");
-                ShowManualDriverInstructions(hw.Name);
-            }
-        }
-
-        private void ShowManualDriverInstructions(string deviceName)
-        {
-            var result = MessageBox.Show(
-                $"Automatic driver installation was not successful for {deviceName}.\n\n" +
-                "To install the driver manually:\n\n" +
-                "  1. Download Zadig from https://zadig.akeo.ie/\n" +
-                "  2. Run Zadig and select your colorimeter from the device list\n" +
-                "  3. Select \"WinUSB\" as the target driver\n" +
-                "  4. Click \"Replace Driver\" or \"Install Driver\"\n" +
-                "  5. Restart PickleCal and scan again\n\n" +
-                "Would you like to open the Zadig download page now?",
-                "Manual Driver Installation Required",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Information);
-
-            if (result == DialogResult.Yes)
-            {
-                try
-                {
-                    Process.Start(new ProcessStartInfo("https://zadig.akeo.ie/") { UseShellExecute = true });
-                }
-                catch { }
-            }
-
-            lblMeterStatus.Text = "Meter status: driver issue — install WinUSB driver and rescan";
-        }
-
-        private void OnArgyllDiscoveryStatus(string message)
-        {
-            if (InvokeRequired)
-            {
-                BeginInvoke(new Action(() => OnArgyllDiscoveryStatus(message)));
-                return;
-            }
-            lblMeterStatus.Text = $"Meter status: {message}";
         }
 
         private void PopulateMeterList()

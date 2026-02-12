@@ -7,7 +7,6 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <Nullable>enable</Nullable>
     <Platforms>x64</Platforms>
-    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <RootNamespace>PickleCalLG</RootNamespace>
     <AssemblyName>PickleCalLG</AssemblyName>
     <!-- <ApplicationIcon>app-icon.ico</ApplicationIcon> -->
